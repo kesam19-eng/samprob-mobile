@@ -243,4 +243,47 @@ elif st.session_state.step == 'WORKSPACE':
             symptomes = st.text_area("Observations / Constantes / Anamnèse", height=100)
             
             # B. CAMERA (La fonction "Appareil Photo" demandée)
-            cam_pic = st.camera_input("📸 Prendre photo (Lésion, Document
+            cam_pic = st.camera_input("📸 Prendre photo (Lésion, Document, Patient)")
+            
+            # C. UPLOAD (La fonction "Upload Multiple" demandée)
+            files = st.file_uploader("📂 Charger Dossier (PDF, DICOM, JPG)", accept_multiple_files=True)
+            
+            # Consolidation
+            all_images = []
+            if cam_pic: all_images.append(Image.open(cam_pic))
+            if files: 
+                for f in files: all_images.append(Image.open(f))
+            
+            if all_images: st.success(f"{len(all_images)} fichier(s) prêt(s) pour analyse.")
+            
+            st.divider()
+            analyze = st.button("🚀 LANCER L'ANALYSE SAMPROB", use_container_width=True)
+
+        with col_out:
+            st.markdown("#### 2. ANALYSE & DÉCISION")
+            
+            if analyze:
+                if not symptomes and not all_images:
+                    st.warning("En attente de données...")
+                else:
+                    with st.spinner("Traitement Multimodal en cours..."):
+                        # Appel au cerveau avec le contexte spécifique du mode
+                        response = st.session_state.brain.assistant_multimodal(
+                            symptomes, 
+                            all_images, 
+                            st.session_state.active_mode
+                        )
+                        st.markdown(f"<div class='ai-box'>{response}</div>", unsafe_allow_html=True)
+            
+            # Fonctionnalités supplémentaires selon le mode
+            st.divider()
+            if st.session_state.active_mode == "GO":
+                st.error("PROTOCOLES URGENCES (Hors-Ligne)")
+                st.caption("Adrénaline, Remplissage, O2...")
+            elif st.session_state.active_mode == "DOCK":
+                st.info("RÉDACTION")
+                st.button("Générer Compte-Rendu PDF")
+            elif st.session_state.active_mode == "STATION":
+                st.warning("VIGILANCE")
+                st.checkbox("Alerte Saignement")
+                st.checkbox("Alerte Choc")
