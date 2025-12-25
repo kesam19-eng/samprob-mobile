@@ -339,4 +339,8 @@ elif st.session_state.step == 'WORKSPACE':
         with col_view:
             if 'final_report' in st.session_state:
                 st.markdown(f"<div class='report-paper'><pre>{st.session_state.final_report}</pre></div>", unsafe_allow_html=True)
-                st.download_button("
+                st.download_button("DOWNLOAD PDF", st.session_state.final_report)
+                if st.session_state.mode == "DOCK":
+                    st.button("SEND TO PACS")
+                elif st.session_state.mode == "GO":
+                    st.button("SEND VIA SATELLITE")
