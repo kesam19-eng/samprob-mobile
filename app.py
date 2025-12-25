@@ -2,261 +2,261 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 import time
-import random
+import pandas as pd
+import numpy as np
 
 # ==============================================================================
-# 1. INTERFACE TACTIQUE "TITANIUM GRADE"
+# 1. UI DESIGN "DEEP BLACK OLED" (Fidèle aux Maquettes)
 # ==============================================================================
-st.set_page_config(page_title="AEGIS OS v4.0", page_icon="☢️", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="SAMProb OS v5", page_icon="💠", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
     <style>
-    /* 1. TYPOGRAPHIE INDUSTRIELLE */
-    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Rajdhani', sans-serif; font-size: 20px !important; }
+    /* IMPORT FONT TECHNOLOGIQUE */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
     
-    /* 2. BARRE D'ÉTAT (BATTERIE / SATELLITE) */
-    .status-bar {
-        background-color: #111; color: #00ffcc; padding: 10px;
-        border-bottom: 2px solid #00ffcc; font-size: 16px;
-        display: flex; justify-content: space-between;
+    /* GLOBAL DARK THEME */
+    .stApp {
+        background-color: #050505; /* Noir Profond OLED */
+        color: #e0e0e0;
+        font-family: 'Inter', sans-serif;
     }
     
-    /* 3. BOUTONS HAPTIQUES */
+    /* HEADERS */
+    h1, h2, h3 { color: #ffffff; font-weight: 800; letter-spacing: -0.5px; }
+    
+    /* BOUTONS NAVIGATION (Mode GO/DOCK/STATION) - Style Maquette Dashboard */
     div.stButton > button {
-        height: 85px; width: 100%; font-size: 24px !important; font-weight: 800 !important;
-        border: 1px solid #444; background-color: #222; color: white;
-        border-radius: 4px; transition: 0.2s;
-        text-transform: uppercase; letter-spacing: 2px;
+        background-color: #1a1a1a;
+        border: 1px solid #333;
+        color: #ffffff;
+        border-radius: 12px;
+        padding: 20px;
+        font-size: 20px;
+        font-weight: 600;
+        width: 100%;
+        transition: all 0.3s ease;
+        text-align: left; /* Alignement comme sur la maquette */
+        display: flex;
+        align-items: center;
     }
-    div.stButton > button:hover { border-color: #00ffcc; color: #00ffcc; }
+    div.stButton > button:hover {
+        border-color: #00ADB5; /* Cyan Médical */
+        background-color: #0f1f22;
+        color: #00ADB5;
+    }
     
-    /* 4. TERMINAL DE DIAGNOSTIC */
-    .terminal-output {
-        background-color: #0a0a0a; border: 1px solid #333; color: #0f0;
-        font-family: 'Courier New', monospace; padding: 15px; border-radius: 5px;
-        margin-top: 10px; font-size: 16px;
+    /* ALERT BOXES (IA DIAGNOSIS) */
+    .suspicious-mass {
+        border: 2px dashed #ff4b4b;
+        background-color: rgba(255, 75, 75, 0.1);
+        padding: 15px;
+        border-radius: 8px;
+        color: #ff4b4b;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 20px;
     }
+    
+    /* PROBE STATUS (Badge) */
+    .probe-badge {
+        background-color: #00ADB5;
+        color: black;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 800;
+        float: right;
+    }
+
+    /* SLIDERS CUSTOM */
+    div.stSlider > div[data-baseweb="slider"] > div { background-color: #00ADB5; }
     </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. SEQUENCE DE DÉMARRAGE (BIOS CHECK)
+# 2. SYSTÈME DE GESTION DES SONDES (PROBE MANAGER)
 # ==============================================================================
-if 'boot_check' not in st.session_state:
-    st.session_state.boot_check = True
-    
-# Barre d'état persistante (Simule le Hardware Unit-01)
-st.markdown("""
-<div class="status-bar">
-    <span>UNIT-01 | EXYNOS MEDICAL 3nm | NPU: 50 TOPS</span>
-    <span>SAT: IRIDIUM [ON] | BATT: SOLID-STATE 98% (SOLAR ACTIVE)</span>
-</div>
-""", unsafe_allow_html=True)
+if 'active_probe' not in st.session_state: st.session_state.active_probe = "None"
+if 'scan_mode' not in st.session_state: st.session_state.scan_mode = "2D" # 2D, Volumetric, Photoacoustic
+
+def sidebar_probe_manager():
+    with st.sidebar:
+        st.markdown("### 🔌 PROBE MANAGER")
+        
+        # Style visuel comme l'image "Probe Manager"
+        col_p1, col_p2 = st.columns([1, 4])
+        with col_p1: st.image("https://img.icons8.com/ios/50/00ADB5/ultrasound.png", width=40)
+        with col_p2: 
+            p1 = st.toggle("Cardiovascular Probe", value=True)
+            if p1: st.session_state.active_probe = "Cardio"
+            st.caption("Bluetooth • Connected")
+            
+        st.divider()
+        
+        col_p3, col_p4 = st.columns([1, 4])
+        with col_p3: st.image("https://img.icons8.com/ios/50/aaaaaa/ultrasound.png", width=40)
+        with col_p4: 
+            p2 = st.toggle("Abdominal Probe", value=False)
+            if p2: st.session_state.active_probe = "Abdo"
+            st.caption("Calibration Required")
+            
+        st.divider()
+        st.caption(f"ACTIVE: **{st.session_state.active_probe.upper()}**")
 
 # ==============================================================================
-# 3. LE CERVEAU AEGIS (AWARENESS INDUSTRIEL)
+# 3. CERVEAU IA (ANALYSE IMAGE ET SPECTRE)
 # ==============================================================================
 class Brain:
     def __init__(self):
-        self.model = None
         self.connected = False
-    
+        self.model = None
+
     def connect(self, key):
         try:
             genai.configure(api_key=key)
-            self.model = genai.GenerativeModel('gemini-1.5-pro') # Upgrade vers Pro pour la logique complexe
+            self.model = genai.GenerativeModel('gemini-1.5-flash')
             self.connected = True
             return True
         except: return False
 
-    def triage(self, texte, images=None, mode_actif="GO", hardware_context=""):
-        if not self.connected: return "⚠️ ERREUR : LIAISON NEURALE INACTIVE."
-        
-        # --- DEFINITION DES SPÉCIFICATIONS INGÉNIERIE ---
-        specs_techniques = f"""
-        TU ES L'OS DU SAMProb™ UNIT-01.
-        
-        TES CAPACITÉS MATÉRIELLES (HARDWARE AWARENESS) :
-        1.  **VISION :** ISOCELL HP5 (200MP) pour la dermatologie de précision + FLIR Boson+ (Thermique) pour l'inflammation + LiDAR (Profondeur plaies).
-        2.  **CALCUL :** SoC Exynos Medical (NPU 50 TOPS). Tu peux analyser des images en temps réel sans Cloud.
-        3.  **IMAGERIE LOURDE (Si connecté) :** SAMTum™ (Scanner Quantique). Capteurs NV Centers (Diamant). Sensibilité Femtotesla.
-        4.  **WEARABLES :** Tu reçois les flux de la Galaxy Watch Medical (Spectrométrie SWIR Glucose/Lactate) et du Ring Life (Température 0.01°C).
-        
-        CONTEXTE OPÉRATIONNEL : {mode_actif}
-        {hardware_context}
-        """
-        
-        system_prompt = f"""
-        {specs_techniques}
-        
-        INSTRUCTIONS DE TRAITEMENT :
-        - Analyse les données entrantes (Texte/Image/Signes Vitaux).
-        - Si Mode STATION + SAMTum™ activé : Simule une analyse quantique des tissus (Détection champs magnétiques neuronaux ou tumoraux).
-        - Si Mode TERRAIN (GO) : Utilise les données FLIR/LiDAR pour évaluer la plaie/trauma.
-        
-        FORMAT DE SORTIE (STRICT) :
-        [SYSTEM] : État des capteurs utilisés (ex: "FLIR: Hotspot détecté", "SAMTum: Séquence Q-MRI terminée").
-        [DIAGNOSTIC] : Analyse probabiliste basée sur la fusion de capteurs.
-        [ACTION] : Protocole recommandé.
-        [PATIENT] : Explication vulgarisée.
-        """
-        
+    def analyze(self, prompt, context):
+        if not self.connected: return "⚠️ SYSTEM OFFLINE: Connect Neural Key in Sidebar."
         try:
-            content = [system_prompt, f"DONNÉES ENTRÉE : {texte}"]
-            if images: content.extend(images)
-            return self.model.generate_content(content).text
-        except Exception as e: return f"Erreur IA : {str(e)}"
+            full_prompt = f"CONTEXT: {context}. ROLE: Medical Imaging AI. TASK: {prompt}"
+            return self.model.generate_content(full_prompt).text
+        except: return "Error processing data."
 
 if 'brain' not in st.session_state: st.session_state.brain = Brain()
 
 # ==============================================================================
-# 4. MENU SYSTÈME (SIDEBAR)
+# 4. NAVIGATION PRINCIPALE (DASHBOARD)
 # ==============================================================================
-if 'page' not in st.session_state: st.session_state.page = "HOME"
+sidebar_probe_manager()
 
+# Clé API (Cachée en bas de sidebar)
 with st.sidebar:
-    st.title("AEGIS OS™")
-    st.caption("v4.0 | KERNEL: ANDROMED 16")
-    
     st.divider()
-    
-    # SÉLECTEUR DE MODE (Conforme Dossier Premium) [cite: 140]
-    st.subheader("MODE OPÉRATIONNEL")
-    mode_aegis = st.radio(
-        "Configuration Chassis :",
-        [
-            "AEGIS GO (Terrain/Sat)", 
-            "AEGIS DOCK (Clinique)", 
-            "AEGIS STATION (Hôpital/Bloc)"
-        ],
-        index=0
-    )
-    
-    # SÉLECTEUR DE PÉRIPHÉRIQUES (Nouveau !)
-    st.subheader("PÉRIPHÉRIQUES EXTERNES")
-    periph_watch = st.checkbox("Galaxy Watch Medical (SWIR)", value=True)
-    periph_ring = st.checkbox("Galaxy Ring Life", value=True)
-    
-    if "STATION" in mode_aegis:
-        periph_samtum = st.checkbox("SAMTum™ (Quantum MRI)", value=False)
-        st.caption("*Nécessite alimentation 220V*")
-    else:
-        periph_samtum = False
+    k = st.text_input("🔑 NEURAL KEY", type="password")
+    if k and st.session_state.brain.connect(k): st.success("ONLINE")
 
-    st.divider()
-    key = st.text_input("CLÉ NEURALE (API)", type="password")
-    if key and st.session_state.brain.connect(key):
-        st.success("CORTEX EN LIGNE")
+# Sélecteur de Pages (Menu caché)
+if 'page' not in st.session_state: st.session_state.page = "DASHBOARD"
 
-# ==============================================================================
-# 5. DASHBOARD PRINCIPAL
-# ==============================================================================
-if st.session_state.page == "HOME":
-    st.title(f"INTERFACE : {mode_aegis.split('(')[0]}")
+# --- PAGE 1: DASHBOARD (SÉLECTEUR DE MODE) ---
+if st.session_state.page == "DASHBOARD":
+    st.image("https://img.icons8.com/ios-filled/100/ffffff/heart-monitor.png", width=80)
+    st.title("SAMProb OS")
+    st.markdown("Select Operational Mode")
     
-    # Affichage des Wearables (Si connectés)
-    if periph_watch or periph_ring:
-        c1, c2, c3 = st.columns(3)
-        with c1: st.metric("GLUCOSE (SWIR)", "98 mg/dL", "-2")
-        with c2: st.metric("LACTATE", "1.1 mmol/L", "Normal")
-        with c3: st.metric("TEMP (RING)", "37.02 °C", "+0.01")
+    st.write("") # Spacer
+    
+    # REPLIQUE EXACTE DE L'IMAGE 6 (Select Mode)
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
+        if st.button("📱 SAMProb GO\nPortable Use"):
+            st.session_state.page = "SCAN"
+            st.session_state.mode = "GO"
+            st.rerun()
+            
+        if st.button("💻 SAMProb DOCK\nDesktop Use"):
+            st.session_state.page = "SCAN"
+            st.session_state.mode = "DOCK"
+            st.rerun()
+            
+        if st.button("🏥 SAMProb STATION\nCart Use"):
+            st.session_state.page = "SCAN"
+            st.session_state.mode = "STATION"
+            st.rerun()
+
+# --- PAGE 2: SCAN INTERFACE (PRE-SCAN & LIVE) ---
+elif st.session_state.page == "SCAN":
+    # HEADER AVEC BOUTON RETOUR
+    col_h1, col_h2 = st.columns([1, 10])
+    with col_h1:
+        if st.button("←"): 
+            st.session_state.page = "DASHBOARD"
+            st.rerun()
+    with col_h2:
+        st.markdown(f"**{st.session_state.mode} MODE** | PROBE: {st.session_state.active_probe}")
+
+    # CONFIGURATION DU SCAN (IMAGE 7 & 8)
+    col_settings, col_viz = st.columns([1, 3])
+    
+    with col_settings:
+        st.markdown("### PRE-SCAN")
+        
+        # SÉLECTEUR DE TYPE DE SCAN (Boutons segmentés simulés)
+        scan_type = st.radio("SCAN MODE", ["2D", "Volumetric 3D", "Photoacoustic"], label_visibility="collapsed")
+        st.session_state.scan_mode = scan_type
+        
+        st.markdown(f"**MODE: {scan_type}**")
+        
+        # SLIDERS (Comme Image 7)
+        depth = st.slider("DEPTH (cm)", 2, 20, 12)
+        
+        st.markdown("GAIN")
+        cg1, cg2, cg3 = st.columns(3)
+        with cg1: st.button("Low")
+        with cg2: st.button("Normal", type="primary") # Simule la sélection
+        with cg3: st.button("High")
+        
+        st.selectbox("PRESET", ["General", "Cardio", "OB/GYN", "Vascular"])
+        
         st.divider()
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("🔴 TRAUMA & \nURGENCES"):
-            st.session_state.page = "RED"
-            st.rerun()
-    with col2:
-        if st.button("🟡 IMAGERIE \nMULTIMODALE"):
-            st.session_state.page = "YELLOW"
-            st.rerun()
-    with col3:
-        if st.button("🟢 ARCHIVES \nQUANTIQUE"):
-            st.session_state.page = "GREEN"
-            st.rerun()
-
-# ==============================================================================
-# PAGE JAUNE : IMAGERIE AVANCÉE (SAMTum & CAPTEURS)
-# ==============================================================================
-elif st.session_state.page == "YELLOW":
-    st.title("🟡 IMAGERIE & FUSION CAPTEURS")
-    
-    # 1. MODE QUANTUM (Si STATION + SAMTum activé)
-    if periph_samtum and "STATION" in mode_aegis:
-        st.markdown("""
-        <div class="terminal-output">
-        >>> PÉRIPHÉRIQUE DÉTECTÉ : SAMTum™ QUANTUM IMAGER
-        >>> MATRICE : 10 240 NV CENTERS (DIAMOND)
-        >>> ÉTAT : PRÊT (T < 1W)
-        </div>
-        """, unsafe_allow_html=True)
         
-        if st.button("LANCER SÉQUENCE Q-MRI (NEURO/CORPS)"):
-            with st.spinner("ACQUISITION FEMTOTESLA EN COURS..."):
-                time.sleep(2) # Simulation scan
-                res = st.session_state.brain.triage(
-                    "Séquence Q-MRI complétée. Recherche anomalie champ magnétique tissulaire.", 
-                    mode_actif="STATION",
-                    hardware_context="INPUT: SAMTum MRI. Sensibilité détection: Métabolisme cellulaire."
+        if st.button("🔵 START SCAN", use_container_width=True):
+            st.toast("Initialization des cristaux piézoélectriques...")
+            time.sleep(1)
+
+    with col_viz:
+        # ZONE DE VISUALISATION (DEPEND DU MODE)
+        st.markdown("### LIVE VIEW")
+        
+        if scan_type == "2D":
+            # Image 1 Simulation (Echo classique + AI)
+            st.image("https://media.istockphoto.com/id/1145618475/photo/ultrasound-screen-with-fetal-heart.jpg?s=612x612&w=0&k=20&c=LwK-Tz7LhZ2C0sV-R2P-tS_eJd-xQyvR_k_r_z_x_y_=", caption="Live 2D Feed", use_column_width=True)
+            
+            # AI OVERLAY (Comme Image 1)
+            st.markdown("""
+            <div class="suspicious-mass">
+            ⚠️ SUSPICIOUS MASS DETECTED (89%)
+            <br><span style="font-size:12px; color:white;">Location: Left Ventricle Wall</span>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        elif scan_type == "Volumetric 3D":
+            # Image 2 Simulation (Cœur 3D)
+            st.info("Rendering VoluScan 3D™...")
+            # Ici on mettrait une image 3D ou un objet PyDeck si on avait les données
+            st.image("https://thumbs.dreamstime.com/b/human-heart-anatomy-cross-section-3d-rendering-human-heart-anatomy-cross-section-3d-rendering-white-background-116634898.jpg", caption="VoluScan 3D Reconstruction", use_column_width=True)
+            st.metric("Volume Mass", "4.2 cm³", "High Density")
+
+        elif scan_type == "Photoacoustic":
+            # Image 5 Simulation (Spectrale)
+            st.warning("LASER ACTIVE - Photoacoustic Imaging")
+            
+            c_img, c_graph = st.columns(2)
+            with c_img:
+                st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Photoacoustic_imaging_principle.svg/1200px-Photoacoustic_imaging_principle.svg.png", caption="Hb/Oxy Heatmap")
+            
+            with c_graph:
+                st.markdown("**Spectral View (nm)**")
+                # Simulation données graphe Image 5
+                chart_data = pd.DataFrame(
+                    np.random.randn(20, 2) + [10, 5],
+                    columns=['Hb', 'HbO2']
                 )
-                st.markdown(f"<div class='terminal-output'>{res}</div>", unsafe_allow_html=True)
-    
-    # 2. MODE TERRAIN (Capteurs Dorsaux Unit-01)
-    else:
-        st.info(f"CAPTEURS ACTIFS : ISOCELL HP5 (200MP) | FLIR BOSON+ | LiDAR")
-        
-        tab1, tab2 = st.tabs(["📸 OPTIQUE / DERMATO", "🔥 THERMIQUE / TRAUMA"])
-        
-        with tab1:
-            st.write("Acquisition Macro (200MP)")
-            img_input = st.camera_input("Scanner Lésion")
-        
-        with tab2:
-            st.write("Acquisition Thermique (FLIR)")
-            if st.button("ACTIVER VUE INFRAROUGE"):
-                st.image("https://upload.wikimedia.org/wikipedia/commons/9/96/Thermal_image_of_hand.jpg", caption="FLIR BOSON+ SIMULATION", width=300)
+                st.line_chart(chart_data)
 
-        # ANALYSE IA GÉNÉRIQUE
-        if st.button("ANALYSE FUSION (LIDAR + OPTIQUE)"):
-             if 'img_input' in locals() and img_input:
-                # Analyse de l'image
-                res = st.session_state.brain.triage(
-                    "Analyse de lésion cutanée. Utilise LiDAR pour profondeur et FLIR pour inflammation.", 
-                    images=[Image.open(img_input)],
-                    mode_actif=mode_aegis
-                )
-                st.markdown(f"<div class='terminal-output'>{res}</div>", unsafe_allow_html=True)
-
-# ==============================================================================
-# PAGE ROUGE : URGENCES (AVEC WEARABLES)
-# ==============================================================================
-elif st.session_state.page == "RED":
-    st.title("🔴 URGENCES & SIGNES VITAUX")
-    
-    col_wear, col_act = st.columns([1, 2])
-    
-    with col_wear:
-        st.subheader("SENTINELLES (WEARABLES)")
-        # Simulation flux continu
-        st.metric("ECG (WATCH)", "Sinusal Regular")
-        st.metric("SpO2", "99%", "Stable")
-        st.metric("LACTATE (SWIR)", "2.5 mmol/L", "High") # Simulation stress
-    
-    with col_act:
-        st.subheader("ACTION TACTIQUE")
-        st.warning("ALERTE : NIVEAU LACTATE ÉLEVÉ DÉTECTÉ PAR LA MONTRE")
-        if st.button("GÉNÉRER PROTOCOLE DE CHOC"):
-            res = st.session_state.brain.triage(
-                "Alerte Wearable : Lactate 2.5 mmol/L. Patient conscient. Demande protocole.",
-                mode_actif=mode_aegis
-            )
-            st.markdown(f"<div class='terminal-output'>{res}</div>", unsafe_allow_html=True)
-
-# ==============================================================================
-# BOUTON RETOUR
-# ==============================================================================
-if st.button("RETOUR ACCUEIL"):
-    st.session_state.page = "HOME"
-    st.rerun()
+    # BARRE D'ACTION BAS DE PAGE (IMAGE 1: Measure, Analyze, Report)
+    st.divider()
+    ca1, ca2, ca3 = st.columns(3)
+    with ca1: st.button("📏 MEASURE", use_container_width=True)
+    with ca2: 
+        if st.button("🤖 AI ANALYZE", use_container_width=True):
+            res = st.session_state.brain.analyze(f"Analyze mass in {scan_type} mode with depth {depth}cm", st.session_state.mode)
+            st.info(res)
+    with ca3: 
+        if st.button("📄 REPORT (PACS)", use_container_width=True):
+            st.success("DICOM Sent to PACS [Coyah P.D. ID: 350742]") # Ref image 4
