@@ -2,66 +2,60 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 import time
+import random
 
 # ==============================================================================
-# 1. CONFIGURATION & STYLE (INTERFACE ÉPURÉE)
+# 1. INTERFACE TACTIQUE "TITANIUM GRADE"
 # ==============================================================================
-st.set_page_config(page_title="SAMProb Final", page_icon="🧬", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="AEGIS OS v4.0", page_icon="☢️", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
     <style>
-    /* POLICE ET BASE */
-    html, body, [class*="css"] { font-family: 'Helvetica', sans-serif; font-size: 18px !important; }
+    /* 1. TYPOGRAPHIE INDUSTRIELLE */
+    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap');
+    html, body, [class*="css"] { font-family: 'Rajdhani', sans-serif; font-size: 20px !important; }
     
-    /* BOUTONS D'ACCUEIL GÉANTS */
-    .big-btn {
-        width: 100%;
-        padding: 40px;
-        border-radius: 15px;
-        text-align: center;
-        font-size: 24px;
-        font-weight: bold;
-        color: white;
-        margin-bottom: 20px;
-        cursor: pointer;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    /* 2. BARRE D'ÉTAT (BATTERIE / SATELLITE) */
+    .status-bar {
+        background-color: #111; color: #00ffcc; padding: 10px;
+        border-bottom: 2px solid #00ffcc; font-size: 16px;
+        display: flex; justify-content: space-between;
     }
     
-    /* COULEURS SPÉCIFIQUES */
-    .red-zone { background-color: #d32f2f; border: 2px solid #b71c1c; }
-    .yellow-zone { background-color: #fbc02d; color: black !important; border: 2px solid #f9a825; }
-    .green-zone { background-color: #388e3c; border: 2px solid #2e7d32; }
-
-    /* BOUTONS STREAMLIT CLASSIQUES */
-    .stButton>button { height: 3.5em !important; font-size: 20px !important; border-radius: 8px !important; width: 100%; }
+    /* 3. BOUTONS HAPTIQUES */
+    div.stButton > button {
+        height: 85px; width: 100%; font-size: 24px !important; font-weight: 800 !important;
+        border: 1px solid #444; background-color: #222; color: white;
+        border-radius: 4px; transition: 0.2s;
+        text-transform: uppercase; letter-spacing: 2px;
+    }
+    div.stButton > button:hover { border-color: #00ffcc; color: #00ffcc; }
     
-    /* BOUTON RETOUR MAISON */
-    .home-btn>button { background-color: #607d8b; color: white; }
-    
-    /* CONTENEUR IA */
-    .ai-result { background-color: #fff; border-left: 6px solid #fbc02d; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    /* 4. TERMINAL DE DIAGNOSTIC */
+    .terminal-output {
+        background-color: #0a0a0a; border: 1px solid #333; color: #0f0;
+        font-family: 'Courier New', monospace; padding: 15px; border-radius: 5px;
+        margin-top: 10px; font-size: 16px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. SÉCURITÉ
+# 2. SEQUENCE DE DÉMARRAGE (BIOS CHECK)
 # ==============================================================================
-if 'auth' not in st.session_state: st.session_state.auth = False
-
-if not st.session_state.auth:
-    st.markdown("<br><h1 style='text-align:center'>🧬 SAMProb</h1><h3 style='text-align:center'>INITIALISATION</h3>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1,2,1])
-    with c2:
-        pwd = st.text_input("CODE D'ACTIVATION", type="password")
-        if st.button("DÉVERROUILLER"):
-            if pwd == "SAMPROB2025":
-                st.session_state.auth = True
-                st.rerun()
-            else: st.error("⛔ CODE INCORRECT")
-    st.stop()
+if 'boot_check' not in st.session_state:
+    st.session_state.boot_check = True
+    
+# Barre d'état persistante (Simule le Hardware Unit-01)
+st.markdown("""
+<div class="status-bar">
+    <span>UNIT-01 | EXYNOS MEDICAL 3nm | NPU: 50 TOPS</span>
+    <span>SAT: IRIDIUM [ON] | BATT: SOLID-STATE 98% (SOLAR ACTIVE)</span>
+</div>
+""", unsafe_allow_html=True)
 
 # ==============================================================================
-# 3. CERVEAU IA (ANALYSE GLOBALE)
+# 3. LE CERVEAU AEGIS (AWARENESS INDUSTRIEL)
 # ==============================================================================
 class Brain:
     def __init__(self):
@@ -71,28 +65,45 @@ class Brain:
     def connect(self, key):
         try:
             genai.configure(api_key=key)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            self.model = genai.GenerativeModel('gemini-1.5-pro') # Upgrade vers Pro pour la logique complexe
             self.connected = True
             return True
         except: return False
 
-    def triage(self, texte, images=None):
-        if not self.connected: return "⚠️ ERREUR : VEUILLEZ CONNECTER LA CLÉ API DANS 'CONFIG'."
+    def triage(self, texte, images=None, mode_actif="GO", hardware_context=""):
+        if not self.connected: return "⚠️ ERREUR : LIAISON NEURALE INACTIVE."
         
-        prompt = """
-        Tu es SAMProb, un système expert de triage hospitalier.
-        Analyse les données fournies (Symptômes, Constantes, et potentiellement Images Radio/Bio/Plaie).
+        # --- DEFINITION DES SPÉCIFICATIONS INGÉNIERIE ---
+        specs_techniques = f"""
+        TU ES L'OS DU SAMProb™ UNIT-01.
         
-        TA RÉPONSE DOIT SUIVRE CE FORMAT STRICT :
-        1. 🏥 SPÉCIALITÉ CONCERNÉE : (Ex: Cardiologie, Orthopédie, Chirurgie Viscérale...)
-        2. 🚨 NIVEAU D'URGENCE : (Absolue / Relative / Différée)
-        3. 🔬 ANALYSE DES SIGNES/IMAGES : (Ce que tu vois sur les images ou dans le texte)
-        4. 📝 HYPOTHÈSES DIAGNOSTIQUES : (Liste probable)
-        5. 💊 PRISE EN CHARGE IMMÉDIATE : (Examens à faire + Traitement d'attaque)
+        TES CAPACITÉS MATÉRIELLES (HARDWARE AWARENESS) :
+        1.  **VISION :** ISOCELL HP5 (200MP) pour la dermatologie de précision + FLIR Boson+ (Thermique) pour l'inflammation + LiDAR (Profondeur plaies).
+        2.  **CALCUL :** SoC Exynos Medical (NPU 50 TOPS). Tu peux analyser des images en temps réel sans Cloud.
+        3.  **IMAGERIE LOURDE (Si connecté) :** SAMTum™ (Scanner Quantique). Capteurs NV Centers (Diamant). Sensibilité Femtotesla.
+        4.  **WEARABLES :** Tu reçois les flux de la Galaxy Watch Medical (Spectrométrie SWIR Glucose/Lactate) et du Ring Life (Température 0.01°C).
+        
+        CONTEXTE OPÉRATIONNEL : {mode_actif}
+        {hardware_context}
+        """
+        
+        system_prompt = f"""
+        {specs_techniques}
+        
+        INSTRUCTIONS DE TRAITEMENT :
+        - Analyse les données entrantes (Texte/Image/Signes Vitaux).
+        - Si Mode STATION + SAMTum™ activé : Simule une analyse quantique des tissus (Détection champs magnétiques neuronaux ou tumoraux).
+        - Si Mode TERRAIN (GO) : Utilise les données FLIR/LiDAR pour évaluer la plaie/trauma.
+        
+        FORMAT DE SORTIE (STRICT) :
+        [SYSTEM] : État des capteurs utilisés (ex: "FLIR: Hotspot détecté", "SAMTum: Séquence Q-MRI terminée").
+        [DIAGNOSTIC] : Analyse probabiliste basée sur la fusion de capteurs.
+        [ACTION] : Protocole recommandé.
+        [PATIENT] : Explication vulgarisée.
         """
         
         try:
-            content = [prompt, f"DONNÉES PATIENT : {texte}"]
+            content = [system_prompt, f"DONNÉES ENTRÉE : {texte}"]
             if images: content.extend(images)
             return self.model.generate_content(content).text
         except Exception as e: return f"Erreur IA : {str(e)}"
@@ -100,189 +111,152 @@ class Brain:
 if 'brain' not in st.session_state: st.session_state.brain = Brain()
 
 # ==============================================================================
-# 4. GESTION DE LA NAVIGATION (PAGES)
+# 4. MENU SYSTÈME (SIDEBAR)
 # ==============================================================================
 if 'page' not in st.session_state: st.session_state.page = "HOME"
 
-def go_home(): st.session_state.page = "HOME"
-def go_red(): st.session_state.page = "RED"
-def go_yellow(): st.session_state.page = "YELLOW"
-def go_green(): st.session_state.page = "GREEN"
-def go_config(): st.session_state.page = "CONFIG"
+with st.sidebar:
+    st.title("AEGIS OS™")
+    st.caption("v4.0 | KERNEL: ANDROMED 16")
+    
+    st.divider()
+    
+    # SÉLECTEUR DE MODE (Conforme Dossier Premium) [cite: 140]
+    st.subheader("MODE OPÉRATIONNEL")
+    mode_aegis = st.radio(
+        "Configuration Chassis :",
+        [
+            "AEGIS GO (Terrain/Sat)", 
+            "AEGIS DOCK (Clinique)", 
+            "AEGIS STATION (Hôpital/Bloc)"
+        ],
+        index=0
+    )
+    
+    # SÉLECTEUR DE PÉRIPHÉRIQUES (Nouveau !)
+    st.subheader("PÉRIPHÉRIQUES EXTERNES")
+    periph_watch = st.checkbox("Galaxy Watch Medical (SWIR)", value=True)
+    periph_ring = st.checkbox("Galaxy Ring Life", value=True)
+    
+    if "STATION" in mode_aegis:
+        periph_samtum = st.checkbox("SAMTum™ (Quantum MRI)", value=False)
+        st.caption("*Nécessite alimentation 220V*")
+    else:
+        periph_samtum = False
+
+    st.divider()
+    key = st.text_input("CLÉ NEURALE (API)", type="password")
+    if key and st.session_state.brain.connect(key):
+        st.success("CORTEX EN LIGNE")
 
 # ==============================================================================
-# 5. PAGE D'ACCUEIL (LES 3 BOUTONS)
+# 5. DASHBOARD PRINCIPAL
 # ==============================================================================
 if st.session_state.page == "HOME":
-    st.title("CENTRE DE COMMANDE")
+    st.title(f"INTERFACE : {mode_aegis.split('(')[0]}")
     
-    # Bouton ROUGE
-    st.markdown('<div class="big-btn red-zone">1. URGENCES VITALES<br><span style="font-size:16px">Protocoles Réanimation & Déchocage</span></div>', unsafe_allow_html=True)
-    if st.button("ACCÉDER AUX URGENCES (ROUGE)", key="btn_red"): go_red(); st.rerun()
+    # Affichage des Wearables (Si connectés)
+    if periph_watch or periph_ring:
+        c1, c2, c3 = st.columns(3)
+        with c1: st.metric("GLUCOSE (SWIR)", "98 mg/dL", "-2")
+        with c2: st.metric("LACTATE", "1.1 mmol/L", "Normal")
+        with c3: st.metric("TEMP (RING)", "37.02 °C", "+0.01")
+        st.divider()
 
-    # Bouton JAUNE
-    st.markdown('<div class="big-btn yellow-zone">2. ANALYSE & ADMISSION<br><span style="font-size:16px">Diagnostic IA Temps Réel (Symptômes + Imagerie)</span></div>', unsafe_allow_html=True)
-    if st.button("NOUVELLE ADMISSION (JAUNE)", key="btn_yellow"): go_yellow(); st.rerun()
-    
-    # Bouton VERT
-    st.markdown('<div class="big-btn green-zone">3. DOSSIERS & RAPPORTS<br><span style="font-size:16px">Comptes-Rendus Automatiques & Archives</span></div>', unsafe_allow_html=True)
-    if st.button("GESTION DOSSIERS (VERT)", key="btn_green"): go_green(); st.rerun()
-    
-    st.markdown("---")
-    if st.button("⚙️ CONFIGURATION CLÉ API"): go_config(); st.rerun()
-
-# ==============================================================================
-# PAGE ROUGE : URGENCES VITALES
-# ==============================================================================
-elif st.session_state.page == "RED":
-    st.markdown("<div class='home-btn'>", unsafe_allow_html=True)
-    if st.button("⬅️ RETOUR ACCUEIL"): go_home(); st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    st.markdown("<h1 style='color:#d32f2f !important'>🚨 PROTOCOLES URGENCES</h1>", unsafe_allow_html=True)
-    
-    c1, c2 = st.columns(2)
-    with c1:
-        st.error("❤️ ARRÊT CARDIO-RESPIRATOIRE")
-        st.write("""
-        **1. MCE** : 100-120/min (30 compressions / 2 insufflations)
-        **2. DÉFIBRILLATION** : Si FV/TV sans pouls -> Choc 200J Biphasique.
-        **3. ADRÉNALINE** : 1mg IVD toutes les 4 min.
-        **4. AMIODARONE** : 300mg IVD après le 3ème choc.
-        """)
-        
-        st.error("🩸 CHOC HÉMORRAGIQUE")
-        st.write("""
-        **1. HÉMOSTASE** : Compression / Garrot / Pansement compressif.
-        **2. REMPLISSAGE** : NaCl 0.9% ou Ringer (Objectif PAM > 65).
-        **3. ACIDE TRANEXAMIQUE** : 1g IV lent sur 10 min.
-        **4. TRANSFUSION** : CGR O-négatif si urgence absolue.
-        """)
-
-    with c2:
-        st.error("🐝 CHOC ANAPHYLACTIQUE")
-        st.write("""
-        **1. ADRÉNALINE IM** (Cuisse) : 
-           - Adulte : 0.5 mg
-           - Enfant : 0.01 mg/kg
-        **2. OXYGÈNE** : Masque haute concentration.
-        **3. REMPLISSAGE** : 20ml/kg si hypotension.
-        """)
-        
-        st.error("🧠 COMA / HYPOGLYCÉMIE")
-        st.write("""
-        **1. GLYCÉMIE CAPILLAIRE** : Si < 0.6 g/l -> G30% IVD.
-        **2. PROTECTION VA** : PLS ou Intubation si GCS < 8.
-        """)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("🔴 TRAUMA & \nURGENCES"):
+            st.session_state.page = "RED"
+            st.rerun()
+    with col2:
+        if st.button("🟡 IMAGERIE \nMULTIMODALE"):
+            st.session_state.page = "YELLOW"
+            st.rerun()
+    with col3:
+        if st.button("🟢 ARCHIVES \nQUANTIQUE"):
+            st.session_state.page = "GREEN"
+            st.rerun()
 
 # ==============================================================================
-# PAGE JAUNE : NOUVELLE ADMISSION (LE CERVEAU IA)
+# PAGE JAUNE : IMAGERIE AVANCÉE (SAMTum & CAPTEURS)
 # ==============================================================================
 elif st.session_state.page == "YELLOW":
-    st.markdown("<div class='home-btn'>", unsafe_allow_html=True)
-    if st.button("⬅️ RETOUR ACCUEIL"): go_home(); st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.title("🟡 IMAGERIE & FUSION CAPTEURS")
     
-    st.markdown("<h1 style='color:#fbc02d !important'>🧬 DIAGNOSTIC TEMPS RÉEL</h1>", unsafe_allow_html=True)
-    st.info("Remplissez les signes cliniques et ajoutez les examens (Photos/PDF) pour déterminer la spécialité.")
+    # 1. MODE QUANTUM (Si STATION + SAMTum activé)
+    if periph_samtum and "STATION" in mode_aegis:
+        st.markdown("""
+        <div class="terminal-output">
+        >>> PÉRIPHÉRIQUE DÉTECTÉ : SAMTum™ QUANTUM IMAGER
+        >>> MATRICE : 10 240 NV CENTERS (DIAMOND)
+        >>> ÉTAT : PRÊT (T < 1W)
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("LANCER SÉQUENCE Q-MRI (NEURO/CORPS)"):
+            with st.spinner("ACQUISITION FEMTOTESLA EN COURS..."):
+                time.sleep(2) # Simulation scan
+                res = st.session_state.brain.triage(
+                    "Séquence Q-MRI complétée. Recherche anomalie champ magnétique tissulaire.", 
+                    mode_actif="STATION",
+                    hardware_context="INPUT: SAMTum MRI. Sensibilité détection: Métabolisme cellulaire."
+                )
+                st.markdown(f"<div class='terminal-output'>{res}</div>", unsafe_allow_html=True)
+    
+    # 2. MODE TERRAIN (Capteurs Dorsaux Unit-01)
+    else:
+        st.info(f"CAPTEURS ACTIFS : ISOCELL HP5 (200MP) | FLIR BOSON+ | LiDAR")
+        
+        tab1, tab2 = st.tabs(["📸 OPTIQUE / DERMATO", "🔥 THERMIQUE / TRAUMA"])
+        
+        with tab1:
+            st.write("Acquisition Macro (200MP)")
+            img_input = st.camera_input("Scanner Lésion")
+        
+        with tab2:
+            st.write("Acquisition Thermique (FLIR)")
+            if st.button("ACTIVER VUE INFRAROUGE"):
+                st.image("https://upload.wikimedia.org/wikipedia/commons/9/96/Thermal_image_of_hand.jpg", caption="FLIR BOSON+ SIMULATION", width=300)
 
-    # 1. DONNÉES CLINIQUES
-    col_input, col_file = st.columns(2)
-    with col_input:
-        st.subheader("1. Signes & Symptômes")
-        texte_clinique = st.text_area("Anamnèse, Constantes, Plaintes...", height=150, placeholder="Ex: Homme 45 ans, douleur thoracique irradiant bras gauche, TA 16/9, Sueurs...")
-    
-    # 2. GESTION FICHIERS (CORRIGÉE)
-    with col_file:
-        st.subheader("2. Imagerie & Bio")
-        
-        # Interrupteur Caméra
-        if 'cam_on' not in st.session_state: st.session_state.cam_on = False
-        
-        if not st.session_state.cam_on:
-            if st.button("📸 OUVRIR CAMÉRA"): st.session_state.cam_on = True; st.rerun()
-        else:
-            if st.button("❌ FERMER CAMÉRA"): st.session_state.cam_on = False; st.rerun()
-            img_cam = st.camera_input("Prendre photo")
-        
-        # Upload Multiple
-        uploaded = st.file_uploader("📂 OU CHARGER FICHIERS", type=['png','jpg','jpeg'], accept_multiple_files=True)
-        
-        # Rassemblement des images
-        images_analyse = []
-        if st.session_state.cam_on and 'img_cam' in locals() and img_cam: images_analyse.append(Image.open(img_cam))
-        if uploaded: 
-            for f in uploaded: images_analyse.append(Image.open(f))
-            st.success(f"✅ {len(images_analyse)} fichiers prêts à l'analyse.")
-
-    # 3. BOUTON ACTION
-    st.markdown("---")
-    if st.button("🚀 LANCER L'ANALYSE DIAGNOSTIQUE COMPLÈTE"):
-        if not texte_clinique and not images_analyse:
-            st.error("⚠️ Veuillez entrer du texte ou une image.")
-        else:
-            with st.spinner("🧠 SAMProb analyse les symptômes, les radios et les constantes..."):
-                resultat = st.session_state.brain.triage(texte_clinique, images_analyse)
-                st.markdown(f"<div class='ai-result'>{resultat}</div>", unsafe_allow_html=True)
-
-# ==============================================================================
-# PAGE VERTE : GESTION DOSSIERS
-# ==============================================================================
-elif st.session_state.page == "GREEN":
-    st.markdown("<div class='home-btn'>", unsafe_allow_html=True)
-    if st.button("⬅️ RETOUR ACCUEIL"): go_home(); st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    st.markdown("<h1 style='color:#2e7d32 !important'>📂 DOSSIERS & RAPPORTS</h1>", unsafe_allow_html=True)
-    
-    st.subheader("Générateur de Compte-Rendu")
-    
-    c1, c2 = st.columns(2)
-    with c1:
-        nom = st.text_input("Nom Patient")
-        diag = st.text_input("Diagnostic Retenu")
-        acte = st.text_input("Acte / Traitement réalisé")
-    
-    with c2:
-        type_rap = st.selectbox("Type de Rapport", ["Compte-Rendu d'Hospitalisation", "Ordonnance de Sortie", "Lettre de liaison"])
-        chir = st.text_input("Médecin Responsable", "Dr. SAMAKÉ")
-    
-    if st.button("GÉNÉRER LE DOCUMENT"):
-        date = time.strftime("%d/%m/%Y")
-        rapport = f"""
-        CHU DONKA - SERVICE D'URGENCE ET CHIRURGIE
-        ------------------------------------------------
-        DATE : {date}
-        TYPE : {type_rap}
-        MÉDECIN : {chir}
-        
-        PATIENT : {nom}
-        DIAGNOSTIC : {diag}
-        
-        HISTOIRE DE LA MALADIE :
-        Patient admis ce jour pour {diag}.
-        
-        PRISE EN CHARGE :
-        {acte}
-        
-        CONCLUSION :
-        État stable. Sortie autorisée avec ordonnance.
-        """
-        st.text_area("Aperçu du Document", rapport, height=300)
-        st.download_button("📥 TÉLÉCHARGER LE RAPPORT", rapport, file_name=f"Rapport_{nom}.txt")
+        # ANALYSE IA GÉNÉRIQUE
+        if st.button("ANALYSE FUSION (LIDAR + OPTIQUE)"):
+             if 'img_input' in locals() and img_input:
+                # Analyse de l'image
+                res = st.session_state.brain.triage(
+                    "Analyse de lésion cutanée. Utilise LiDAR pour profondeur et FLIR pour inflammation.", 
+                    images=[Image.open(img_input)],
+                    mode_actif=mode_aegis
+                )
+                st.markdown(f"<div class='terminal-output'>{res}</div>", unsafe_allow_html=True)
 
 # ==============================================================================
-# PAGE CONFIGURATION
+# PAGE ROUGE : URGENCES (AVEC WEARABLES)
 # ==============================================================================
-elif st.session_state.page == "CONFIG":
-    st.title("RÉGLAGES SYSTÈME")
-    key = st.text_input("CLÉ API GOOGLE GEMINI", type="password")
-    if st.button("CONNECTER"):
-        if st.session_state.brain.connect(key):
-            st.success("✅ CONNEXION RÉUSSIE. RETOURNEZ À L'ACCUEIL.")
-            time.sleep(1)
-            go_home(); st.rerun()
-        else:
-            st.error("❌ CLÉ INVALIDE")
+elif st.session_state.page == "RED":
+    st.title("🔴 URGENCES & SIGNES VITAUX")
     
-    if st.button("⬅️ RETOUR SANS SAUVEGARDER"): go_home(); st.rerun()
+    col_wear, col_act = st.columns([1, 2])
+    
+    with col_wear:
+        st.subheader("SENTINELLES (WEARABLES)")
+        # Simulation flux continu
+        st.metric("ECG (WATCH)", "Sinusal Regular")
+        st.metric("SpO2", "99%", "Stable")
+        st.metric("LACTATE (SWIR)", "2.5 mmol/L", "High") # Simulation stress
+    
+    with col_act:
+        st.subheader("ACTION TACTIQUE")
+        st.warning("ALERTE : NIVEAU LACTATE ÉLEVÉ DÉTECTÉ PAR LA MONTRE")
+        if st.button("GÉNÉRER PROTOCOLE DE CHOC"):
+            res = st.session_state.brain.triage(
+                "Alerte Wearable : Lactate 2.5 mmol/L. Patient conscient. Demande protocole.",
+                mode_actif=mode_aegis
+            )
+            st.markdown(f"<div class='terminal-output'>{res}</div>", unsafe_allow_html=True)
+
+# ==============================================================================
+# BOUTON RETOUR
+# ==============================================================================
+if st.button("RETOUR ACCUEIL"):
+    st.session_state.page = "HOME"
+    st.rerun()
