@@ -4,114 +4,45 @@ from PIL import Image
 import time
 import pandas as pd
 import numpy as np
+import datetime
 
 # ==============================================================================
-# 1. UI DESIGN "DEEP BLACK OLED" (Fidèle aux Maquettes)
+# 1. ARCHITECTURE & DESIGN (NEURO-OS)
 # ==============================================================================
-st.set_page_config(page_title="SAMProb OS v5", page_icon="💠", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="SAMProb Neuro-OS", page_icon="🧬", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
     <style>
-    /* IMPORT FONT TECHNOLOGIQUE */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
     
-    /* GLOBAL DARK THEME */
-    .stApp {
-        background-color: #050505; /* Noir Profond OLED */
-        color: #e0e0e0;
-        font-family: 'Inter', sans-serif;
-    }
+    /* THEME SOMBRE PROFOND (OLED) */
+    .stApp { background-color: #050505; color: #e0e0e0; font-family: 'Inter', sans-serif; }
     
-    /* HEADERS */
-    h1, h2, h3 { color: #ffffff; font-weight: 800; letter-spacing: -0.5px; }
+    /* NAVIGATION */
+    .nav-header { font-size: 14px; color: #888; margin-top: 20px; text-transform: uppercase; letter-spacing: 1px; }
     
-    /* BOUTONS NAVIGATION (Mode GO/DOCK/STATION) - Style Maquette Dashboard */
-    div.stButton > button {
-        background-color: #1a1a1a;
-        border: 1px solid #333;
-        color: #ffffff;
-        border-radius: 12px;
-        padding: 20px;
-        font-size: 20px;
-        font-weight: 600;
-        width: 100%;
-        transition: all 0.3s ease;
-        text-align: left; /* Alignement comme sur la maquette */
-        display: flex;
-        align-items: center;
-    }
-    div.stButton > button:hover {
-        border-color: #00ADB5; /* Cyan Médical */
-        background-color: #0f1f22;
-        color: #00ADB5;
-    }
+    /* BOUTONS SCAN (Mode Visuel) */
+    .stButton>button { border-radius: 8px; font-weight: 600; }
     
-    /* ALERT BOXES (IA DIAGNOSIS) */
-    .suspicious-mass {
-        border: 2px dashed #ff4b4b;
-        background-color: rgba(255, 75, 75, 0.1);
-        padding: 15px;
-        border-radius: 8px;
-        color: #ff4b4b;
-        font-weight: bold;
-        text-align: center;
-        margin-bottom: 20px;
-    }
+    /* ZONES DE TEXTE (Mode Bureau) */
+    .stTextArea>div>div>textarea { background-color: #1a1a1a; color: white; border: 1px solid #333; }
+    .stTextInput>div>div>input { background-color: #1a1a1a; color: white; border: 1px solid #333; }
     
-    /* PROBE STATUS (Badge) */
-    .probe-badge {
-        background-color: #00ADB5;
-        color: black;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 800;
-        float: right;
-    }
-
-    /* SLIDERS CUSTOM */
-    div.stSlider > div[data-baseweb="slider"] > div { background-color: #00ADB5; }
+    /* MESSAGES IA (Assistant) */
+    .chat-user { background-color: #2b2b2b; padding: 10px; border-radius: 10px; margin: 5px 0; text-align: right; }
+    .chat-ai { background-color: #003333; border-left: 4px solid #00ADB5; padding: 10px; border-radius: 10px; margin: 5px 0; }
     </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. SYSTÈME DE GESTION DES SONDES (PROBE MANAGER)
+# 2. LE CERVEAU CENTRAL (INTELLIGENCE UNIFIÉE)
 # ==============================================================================
-if 'active_probe' not in st.session_state: st.session_state.active_probe = "None"
-if 'scan_mode' not in st.session_state: st.session_state.scan_mode = "2D" # 2D, Volumetric, Photoacoustic
-
-def sidebar_probe_manager():
-    with st.sidebar:
-        st.markdown("### 🔌 PROBE MANAGER")
-        
-        # Style visuel comme l'image "Probe Manager"
-        col_p1, col_p2 = st.columns([1, 4])
-        with col_p1: st.image("https://img.icons8.com/ios/50/00ADB5/ultrasound.png", width=40)
-        with col_p2: 
-            p1 = st.toggle("Cardiovascular Probe", value=True)
-            if p1: st.session_state.active_probe = "Cardio"
-            st.caption("Bluetooth • Connected")
-            
-        st.divider()
-        
-        col_p3, col_p4 = st.columns([1, 4])
-        with col_p3: st.image("https://img.icons8.com/ios/50/aaaaaa/ultrasound.png", width=40)
-        with col_p4: 
-            p2 = st.toggle("Abdominal Probe", value=False)
-            if p2: st.session_state.active_probe = "Abdo"
-            st.caption("Calibration Required")
-            
-        st.divider()
-        st.caption(f"ACTIVE: **{st.session_state.active_probe.upper()}**")
-
-# ==============================================================================
-# 3. CERVEAU IA (ANALYSE IMAGE ET SPECTRE)
-# ==============================================================================
-class Brain:
+class NeuralCore:
     def __init__(self):
-        self.connected = False
         self.model = None
-
+        self.connected = False
+        self.history = [] # Mémoire de conversation
+    
     def connect(self, key):
         try:
             genai.configure(api_key=key)
@@ -120,143 +51,184 @@ class Brain:
             return True
         except: return False
 
-    def analyze(self, prompt, context):
-        if not self.connected: return "⚠️ SYSTEM OFFLINE: Connect Neural Key in Sidebar."
+    def assistant_clinique(self, user_input, context="General"):
+        if not self.connected: return "⚠️ IA HORS-LIGNE. Veuillez connecter la clé neurale."
+        
+        system_prompt = f"""
+        TU ES : L'Assistant Médical Intégré du SAMProb.
+        CONTEXTE ACTUEL : {context}.
+        
+        TES CAPACITÉS :
+        1. Aide au diagnostic (Symptômes -> Probabilités).
+        2. Protocoles thérapeutiques (Posologies, Urgences).
+        3. Rédaction médicale (Transformer des notes en rapports formels).
+        
+        STYLE DE RÉPONSE : Précis, Clinique, Structuré (Listes à puces).
+        """
+        full_query = f"{system_prompt}\n\nQUESTION DU MÉDECIN : {user_input}"
         try:
-            full_prompt = f"CONTEXT: {context}. ROLE: Medical Imaging AI. TASK: {prompt}"
-            return self.model.generate_content(full_prompt).text
-        except: return "Error processing data."
+            response = self.model.generate_content(full_query).text
+            return response
+        except Exception as e: return f"Erreur cognitive : {str(e)}"
 
-if 'brain' not in st.session_state: st.session_state.brain = Brain()
+    def generer_rapport(self, type_doc, data):
+        prompt = f"""
+        RÉDIGE UN DOCUMENT MÉDICAL FORMEL.
+        TYPE : {type_doc}
+        DONNÉES BRUTES : {data}
+        
+        FORMAT : Professionnel, prêt à être imprimé ou envoyé au PACS.
+        Inclus : En-tête, Anamnèse, Examen, Conclusion.
+        """
+        return self.assistant_clinique(prompt, context="SECRETARIAT MÉDICAL")
+
+if 'core' not in st.session_state: st.session_state.core = NeuralCore()
 
 # ==============================================================================
-# 4. NAVIGATION PRINCIPALE (DASHBOARD)
+# 3. BARRE LATÉRALE : NAVIGATION & MATÉRIEL
 # ==============================================================================
-sidebar_probe_manager()
-
-# Clé API (Cachée en bas de sidebar)
 with st.sidebar:
+    st.image("https://img.icons8.com/ios-filled/50/00ADB5/dna-helix.png", width=50)
+    st.markdown("## SAMProb OS™")
+    st.caption("v6.0 | Unified Medical Platform")
+    
     st.divider()
-    k = st.text_input("🔑 NEURAL KEY", type="password")
-    if k and st.session_state.brain.connect(k): st.success("ONLINE")
-
-# Sélecteur de Pages (Menu caché)
-if 'page' not in st.session_state: st.session_state.page = "DASHBOARD"
-
-# --- PAGE 1: DASHBOARD (SÉLECTEUR DE MODE) ---
-if st.session_state.page == "DASHBOARD":
-    st.image("https://img.icons8.com/ios-filled/100/ffffff/heart-monitor.png", width=80)
-    st.title("SAMProb OS")
-    st.markdown("Select Operational Mode")
     
-    st.write("") # Spacer
+    # --- CENTRE DE NAVIGATION ---
+    st.markdown("<p class='nav-header'>MODULES</p>", unsafe_allow_html=True)
+    app_mode = st.radio("SÉLECTIONNER INTERFACE :", 
+        ["📡 IMAGERIE (SCAN)", "🧠 ASSISTANT CLINIQUE", "📝 BUREAU & RAPPORTS"],
+        label_visibility="collapsed"
+    )
     
-    # REPLIQUE EXACTE DE L'IMAGE 6 (Select Mode)
-    c1, c2, c3 = st.columns([1, 2, 1])
-    with c2:
-        if st.button("📱 SAMProb GO\nPortable Use"):
-            st.session_state.page = "SCAN"
-            st.session_state.mode = "GO"
-            st.rerun()
-            
-        if st.button("💻 SAMProb DOCK\nDesktop Use"):
-            st.session_state.page = "SCAN"
-            st.session_state.mode = "DOCK"
-            st.rerun()
-            
-        if st.button("🏥 SAMProb STATION\nCart Use"):
-            st.session_state.page = "SCAN"
-            st.session_state.mode = "STATION"
-            st.rerun()
-
-# --- PAGE 2: SCAN INTERFACE (PRE-SCAN & LIVE) ---
-elif st.session_state.page == "SCAN":
-    # HEADER AVEC BOUTON RETOUR
-    col_h1, col_h2 = st.columns([1, 10])
-    with col_h1:
-        if st.button("←"): 
-            st.session_state.page = "DASHBOARD"
-            st.rerun()
-    with col_h2:
-        st.markdown(f"**{st.session_state.mode} MODE** | PROBE: {st.session_state.active_probe}")
-
-    # CONFIGURATION DU SCAN (IMAGE 7 & 8)
-    col_settings, col_viz = st.columns([1, 3])
+    st.divider()
     
-    with col_settings:
-        st.markdown("### PRE-SCAN")
+    # --- GESTION SONDES (Visible partout) ---
+    st.markdown("<p class='nav-header'>ÉTAT MATÉRIEL</p>", unsafe_allow_html=True)
+    st.info(f"Sonde Active : **Cardio (Phased Array)**")
+    st.progress(88, text="Batterie Tablette")
+    
+    # Connexion IA
+    with st.expander("🔐 CLÉ NEURALE"):
+        k = st.text_input("API Key", type="password")
+        if st.button("CONNECTER"):
+            if st.session_state.core.connect(k): st.success("CORTEX ACTIF")
+
+# ==============================================================================
+# MODULE A : IMAGERIE (LE CORPS - TON CODE VISUEL)
+# ==============================================================================
+if app_mode == "📡 IMAGERIE (SCAN)":
+    st.title("IMAGERIE HYBRIDE")
+    
+    # --- COMMANDES ---
+    c_ctrl, c_view = st.columns([1, 3])
+    
+    with c_ctrl:
+        st.markdown("### RÉGLAGES")
+        mode_scan = st.selectbox("MODE D'ACQUISITION", ["2D Standard", "Doppler Couleur", "Photoacoustique (Hb)", "Fusion 3D"])
         
-        # SÉLECTEUR DE TYPE DE SCAN (Boutons segmentés simulés)
-        scan_type = st.radio("SCAN MODE", ["2D", "Volumetric 3D", "Photoacoustic"], label_visibility="collapsed")
-        st.session_state.scan_mode = scan_type
-        
-        st.markdown(f"**MODE: {scan_type}**")
-        
-        # SLIDERS (Comme Image 7)
-        depth = st.slider("DEPTH (cm)", 2, 20, 12)
-        
-        st.markdown("GAIN")
-        cg1, cg2, cg3 = st.columns(3)
-        with cg1: st.button("Low")
-        with cg2: st.button("Normal", type="primary") # Simule la sélection
-        with cg3: st.button("High")
-        
-        st.selectbox("PRESET", ["General", "Cardio", "OB/GYN", "Vascular"])
+        st.slider("PROFONDEUR (cm)", 2, 25, 12)
+        st.slider("GAIN (dB)", 0, 100, 60)
+        st.slider("FOCUS", 1, 5, 2)
         
         st.divider()
-        
-        if st.button("🔵 START SCAN", use_container_width=True):
-            st.toast("Initialization des cristaux piézoélectriques...")
-            time.sleep(1)
+        if st.button("❄️ FREEZE", type="primary", use_container_width=True):
+            st.toast("Image Gelée")
+        if st.button("📸 CAPTURE DICOM", use_container_width=True):
+            st.toast("Sauvegardé dans PACS Local")
 
-    with col_viz:
-        # ZONE DE VISUALISATION (DEPEND DU MODE)
-        st.markdown("### LIVE VIEW")
-        
-        if scan_type == "2D":
-            # Image 1 Simulation (Echo classique + AI)
-            st.image("https://media.istockphoto.com/id/1145618475/photo/ultrasound-screen-with-fetal-heart.jpg?s=612x612&w=0&k=20&c=LwK-Tz7LhZ2C0sV-R2P-tS_eJd-xQyvR_k_r_z_x_y_=", caption="Live 2D Feed", use_column_width=True)
+    # --- VISUALISATION ---
+    with c_view:
+        # Simulation d'écran d'échographie
+        if mode_scan == "Photoacoustique (Hb)":
+            st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Photoacoustic_imaging_principle.svg/1200px-Photoacoustic_imaging_principle.svg.png", caption="Analyse Spectrale Tissulaire", use_column_width=True)
+            # Graphe spectral
+            chart_data = pd.DataFrame(np.random.randn(20, 2) + [5, 5], columns=['Oxy-Hb', 'Deoxy-Hb'])
+            st.line_chart(chart_data, height=200)
             
-            # AI OVERLAY (Comme Image 1)
-            st.markdown("""
-            <div class="suspicious-mass">
-            ⚠️ SUSPICIOUS MASS DETECTED (89%)
-            <br><span style="font-size:12px; color:white;">Location: Left Ventricle Wall</span>
-            </div>
-            """, unsafe_allow_html=True)
+        elif mode_scan == "Fusion 3D":
+            st.image("https://thumbs.dreamstime.com/b/human-heart-anatomy-cross-section-3d-rendering-human-heart-anatomy-cross-section-3d-rendering-white-background-116634898.jpg", caption="Reconstruction Volumétrique Temps Réel", use_column_width=True)
             
-        elif scan_type == "Volumetric 3D":
-            # Image 2 Simulation (Cœur 3D)
-            st.info("Rendering VoluScan 3D™...")
-            # Ici on mettrait une image 3D ou un objet PyDeck si on avait les données
-            st.image("https://thumbs.dreamstime.com/b/human-heart-anatomy-cross-section-3d-rendering-human-heart-anatomy-cross-section-3d-rendering-white-background-116634898.jpg", caption="VoluScan 3D Reconstruction", use_column_width=True)
-            st.metric("Volume Mass", "4.2 cm³", "High Density")
+        else:
+            st.image("https://media.istockphoto.com/id/1145618475/photo/ultrasound-screen-with-fetal-heart.jpg?s=612x612&w=0&k=20&c=LwK-Tz7LhZ2C0sV-R2P-tS_eJd-xQyvR_k_r_z_x_y_=", caption="Flux 2D Temps Réel", use_column_width=True)
 
-        elif scan_type == "Photoacoustic":
-            # Image 5 Simulation (Spectrale)
-            st.warning("LASER ACTIVE - Photoacoustic Imaging")
+# ==============================================================================
+# MODULE B : ASSISTANT CLINIQUE (L'ESPRIT - CHATBOT MÉDICAL)
+# ==============================================================================
+elif app_mode == "🧠 ASSISTANT CLINIQUE":
+    st.title("ASSISTANT DIAGNOSTIC & THÉRAPEUTIQUE")
+    st.caption("Interrogez SAMProb sur des cas complexes, des posologies ou des protocoles.")
+    
+    # Historique simulé pour l'exemple
+    st.markdown("""
+    <div class='chat-user'>Patient de 45 ans, douleur thoracique atypique, ECG normal. Troponine négative.</div>
+    <div class='chat-ai'>
+    <b>Analyse SAMProb :</b><br>
+    Le risque coronarien semble faible (Score HEART bas).<br>
+    <b>Diagnostics différentiels à évoquer :</b>
+    <ul>
+    <li>Douleur pariétale / Musculaire (Syndrome de Tietze)</li>
+    <li>Reflux Gastro-Oesophagien (RGO)</li>
+    <li>Péricardite débutante (À recontrôler écho)</li>
+    </ul>
+    <b>Conduite à tenir suggérée :</b><br>
+    Traitement d'épreuve IPP + Antalgiques simples. Surveillance ambulatoire.
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Zone d'interaction réelle
+    user_q = st.chat_input("Posez votre question clinique ici...")
+    if user_q:
+        st.markdown(f"<div class='chat-user'>{user_q}</div>", unsafe_allow_html=True)
+        with st.spinner("Analyse clinique en cours..."):
+            rep = st.session_state.core.assistant_clinique(user_q, context="Consultation Médecine Générale")
+            st.markdown(f"<div class='chat-ai'>{rep}</div>", unsafe_allow_html=True)
+
+# ==============================================================================
+# MODULE C : BUREAU & RAPPORTS (LA STATION DE TRAVAIL)
+# ==============================================================================
+elif app_mode == "📝 BUREAU & RAPPORTS":
+    st.title("STATION DE TRAVAIL ADMINISTRATIVE")
+    
+    tab1, tab2, tab3 = st.tabs(["📄 COMPTE-RENDU", "🌙 RAPPORT DE GARDE", "📋 STAFF/TRANSMISSION"])
+    
+    # --- GÉNÉRATEUR DE CR D'EXAMEN ---
+    with tab1:
+        st.subheader("Générateur de Compte-Rendu Automatique")
+        col_form, col_res = st.columns(2)
+        
+        with col_form:
+            pat_name = st.text_input("Nom Patient")
+            exam_type = st.selectbox("Examen réalisé", ["Échographie Abdominale", "Échographie Cardiaque", "Consultation Standard"])
+            observations = st.text_area("Notes brutes (ex: Foie normal, reins ok, pas de calculs)", height=150)
             
-            c_img, c_graph = st.columns(2)
-            with c_img:
-                st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Photoacoustic_imaging_principle.svg/1200px-Photoacoustic_imaging_principle.svg.png", caption="Hb/Oxy Heatmap")
-            
-            with c_graph:
-                st.markdown("**Spectral View (nm)**")
-                # Simulation données graphe Image 5
-                chart_data = pd.DataFrame(
-                    np.random.randn(20, 2) + [10, 5],
-                    columns=['Hb', 'HbO2']
+            if st.button("GÉNÉRER LE DOCUMENT OFFICIEL"):
+                if observations:
+                    with st.spinner("Rédaction formelle..."):
+                        res_rapport = st.session_state.core.generer_rapport(f"Compte-Rendu {exam_type}", f"Patient: {pat_name}. Notes: {observations}")
+                        st.session_state.last_report = res_rapport
+                else: st.error("Notes manquantes")
+        
+        with col_res:
+            if 'last_report' in st.session_state:
+                st.text_area("Aperçu Document", st.session_state.last_report, height=400)
+                st.download_button("📥 TÉLÉCHARGER PDF", st.session_state.last_report)
+
+    # --- GESTION DE GARDE ---
+    with tab2:
+        st.subheader("Journal de Garde")
+        st.info("Saisissez les événements de la nuit pour générer le rapport de transmission matinal.")
+        
+        evt_nuit = st.text_area("Événements marquants (ex: 2h00 Admission AVC, 4h00 Décès lit 3...)", height=100)
+        if st.button("CRÉER RAPPORT DE TRANSMISSION"):
+            with st.spinner("Synthèse..."):
+                synthese = st.session_state.core.assistant_clinique(
+                    f"Fais un rapport de transmission structuré pour l'équipe du matin basé sur : {evt_nuit}", 
+                    context="RELÈVE DE GARDE HÔPITAL"
                 )
-                st.line_chart(chart_data)
-
-    # BARRE D'ACTION BAS DE PAGE (IMAGE 1: Measure, Analyze, Report)
-    st.divider()
-    ca1, ca2, ca3 = st.columns(3)
-    with ca1: st.button("📏 MEASURE", use_container_width=True)
-    with ca2: 
-        if st.button("🤖 AI ANALYZE", use_container_width=True):
-            res = st.session_state.brain.analyze(f"Analyze mass in {scan_type} mode with depth {depth}cm", st.session_state.mode)
-            st.info(res)
-    with ca3: 
-        if st.button("📄 REPORT (PACS)", use_container_width=True):
-            st.success("DICOM Sent to PACS [Coyah P.D. ID: 350742]") # Ref image 4
+                st.markdown(f"<div class='chat-ai'>{synthese}</div>", unsafe_allow_html=True)
+    
+    # --- STAFF ---
+    with tab3:
+        st.write("Gestion des dossiers difficiles et présentations staff.")
+        st.text_input("Rechercher un dossier patient...")
