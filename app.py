@@ -1,172 +1,288 @@
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
+import time
 
 # ==============================================================================
-# 1. CONFIGURATION & DESIGN
+# 1. CONFIGURATION & STYLE (INTERFACE ÉPURÉE)
 # ==============================================================================
-st.set_page_config(page_title="SAMProb Expert", page_icon="🧬", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="SAMProb Final", page_icon="🧬", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
     <style>
-    html, body, [class*="css"] { font-family: 'Segoe UI', sans-serif; font-size: 18px !important; color: #1e1e1e !important; }
-    .stApp { background-color: #f8f9fa; }
-    h1 { color: #2e7d32 !important; font-size: 2.2rem !important; border-bottom: 2px solid #2e7d32; text-transform: uppercase; }
-    .ai-box { background-color: #ffffff; border-left: 5px solid #2e7d32; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .stButton>button { height: 3.5em !important; font-size: 20px !important; border-radius: 8px !important; background-color: #2e7d32; color: white; width: 100%; border: none; }
+    /* POLICE ET BASE */
+    html, body, [class*="css"] { font-family: 'Helvetica', sans-serif; font-size: 18px !important; }
     
-    /* Bouton spécifique pour éteindre (Rouge) */
-    .stop-btn>button { background-color: #c62828 !important; }
+    /* BOUTONS D'ACCUEIL GÉANTS */
+    .big-btn {
+        width: 100%;
+        padding: 40px;
+        border-radius: 15px;
+        text-align: center;
+        font-size: 24px;
+        font-weight: bold;
+        color: white;
+        margin-bottom: 20px;
+        cursor: pointer;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    }
+    
+    /* COULEURS SPÉCIFIQUES */
+    .red-zone { background-color: #d32f2f; border: 2px solid #b71c1c; }
+    .yellow-zone { background-color: #fbc02d; color: black !important; border: 2px solid #f9a825; }
+    .green-zone { background-color: #388e3c; border: 2px solid #2e7d32; }
+
+    /* BOUTONS STREAMLIT CLASSIQUES */
+    .stButton>button { height: 3.5em !important; font-size: 20px !important; border-radius: 8px !important; width: 100%; }
+    
+    /* BOUTON RETOUR MAISON */
+    .home-btn>button { background-color: #607d8b; color: white; }
+    
+    /* CONTENEUR IA */
+    .ai-result { background-color: #fff; border-left: 6px solid #fbc02d; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
     </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
 # 2. SÉCURITÉ
 # ==============================================================================
-if 'auth_sam' not in st.session_state: st.session_state.auth_sam = False
+if 'auth' not in st.session_state: st.session_state.auth = False
 
-if not st.session_state.auth_sam:
-    st.markdown("<br><h1 style='text-align:center'>🧬 SAMProb</h1><h3 style='text-align:center'>IDENTIFICATION</h3>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
+if not st.session_state.auth:
+    st.markdown("<br><h1 style='text-align:center'>🧬 SAMProb</h1><h3 style='text-align:center'>INITIALISATION</h3>", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns([1,2,1])
+    with c2:
         pwd = st.text_input("CODE D'ACTIVATION", type="password")
-        if st.button("INITIALISER"):
+        if st.button("DÉVERROUILLER"):
             if pwd == "SAMPROB2025":
-                st.session_state.auth_sam = True
+                st.session_state.auth = True
                 st.rerun()
             else: st.error("⛔ CODE INCORRECT")
     st.stop()
 
 # ==============================================================================
-# 3. CERVEAU IA
+# 3. CERVEAU IA (ANALYSE GLOBALE)
 # ==============================================================================
 class Brain:
     def __init__(self):
         self.model = None
-        self.api_valid = False
-
+        self.connected = False
+    
     def connect(self, key):
         try:
             genai.configure(api_key=key)
             self.model = genai.GenerativeModel('gemini-1.5-flash')
-            self.api_valid = True
+            self.connected = True
             return True
         except: return False
 
-    def analyze(self, prompt, images=None):
-        if not self.api_valid: return "⚠️ ERREUR : Connectez la clé API dans CONFIG."
-        sys_prompt = "Tu es SAMProb, assistant expert en Chirurgie et Urgences. Structure ta réponse : 1. OBSERVATION, 2. HYPOTHÈSES, 3. CONDUITE À TENIR. Sois concis."
+    def triage(self, texte, images=None):
+        if not self.connected: return "⚠️ ERREUR : VEUILLEZ CONNECTER LA CLÉ API DANS 'CONFIG'."
+        
+        prompt = """
+        Tu es SAMProb, un système expert de triage hospitalier.
+        Analyse les données fournies (Symptômes, Constantes, et potentiellement Images Radio/Bio/Plaie).
+        
+        TA RÉPONSE DOIT SUIVRE CE FORMAT STRICT :
+        1. 🏥 SPÉCIALITÉ CONCERNÉE : (Ex: Cardiologie, Orthopédie, Chirurgie Viscérale...)
+        2. 🚨 NIVEAU D'URGENCE : (Absolue / Relative / Différée)
+        3. 🔬 ANALYSE DES SIGNES/IMAGES : (Ce que tu vois sur les images ou dans le texte)
+        4. 📝 HYPOTHÈSES DIAGNOSTIQUES : (Liste probable)
+        5. 💊 PRISE EN CHARGE IMMÉDIATE : (Examens à faire + Traitement d'attaque)
+        """
+        
         try:
-            content = [sys_prompt, prompt]
+            content = [prompt, f"DONNÉES PATIENT : {texte}"]
             if images: content.extend(images)
-            response = self.model.generate_content(content)
-            return response.text
-        except Exception as e: return f"Erreur IA : {e}"
+            return self.model.generate_content(content).text
+        except Exception as e: return f"Erreur IA : {str(e)}"
 
 if 'brain' not in st.session_state: st.session_state.brain = Brain()
 
 # ==============================================================================
-# 4. APPLICATION
+# 4. GESTION DE LA NAVIGATION (PAGES)
 # ==============================================================================
-with st.sidebar:
-    st.title("🧬 SAMProb V3.1")
-    st.caption("Dr. SAMAKÉ")
-    menu = st.radio("MENU", ["💬 AVIS MÉDICAL", "👁️ VISION (MULTI)", "🧮 SCORES", "⚡ URGENCES", "⚙️ CONFIG"])
-    if st.button("🔒 SORTIR"):
-        st.session_state.auth_sam = False
-        st.rerun()
+if 'page' not in st.session_state: st.session_state.page = "HOME"
 
-# --- MODULE AVIS ---
-if menu == "💬 AVIS MÉDICAL":
-    st.title("CONSULTATION IA")
-    if 'history' not in st.session_state: st.session_state.history = []
+def go_home(): st.session_state.page = "HOME"
+def go_red(): st.session_state.page = "RED"
+def go_yellow(): st.session_state.page = "YELLOW"
+def go_green(): st.session_state.page = "GREEN"
+def go_config(): st.session_state.page = "CONFIG"
+
+# ==============================================================================
+# 5. PAGE D'ACCUEIL (LES 3 BOUTONS)
+# ==============================================================================
+if st.session_state.page == "HOME":
+    st.title("CENTRE DE COMMANDE")
     
-    for msg in st.session_state.history:
-        style = "background:#e3f2fd;padding:15px;border-radius:10px;text-align:right" if msg['role']=='user' else "background:white;border-left:5px solid #2e7d32;padding:15px"
-        st.markdown(f"<div style='{style}'><b>{'Moi' if msg['role']=='user' else 'SAMProb'} :</b><br>{msg['text']}</div><br>", unsafe_allow_html=True)
-            
-    user_input = st.chat_input("Cas clinique...")
-    if user_input:
-        st.session_state.history.append({"role": "user", "text": user_input})
-        with st.spinner("Réflexion..."):
-            resp = st.session_state.brain.analyze(user_input)
-            st.session_state.history.append({"role": "ai", "text": resp})
-        st.rerun()
+    # Bouton ROUGE
+    st.markdown('<div class="big-btn red-zone">1. URGENCES VITALES<br><span style="font-size:16px">Protocoles Réanimation & Déchocage</span></div>', unsafe_allow_html=True)
+    if st.button("ACCÉDER AUX URGENCES (ROUGE)", key="btn_red"): go_red(); st.rerun()
 
-# --- MODULE VISION (AVEC BOUTON ON/OFF) ---
-elif menu == "👁️ VISION (MULTI)":
-    st.title("ANALYSE D'IMAGES")
+    # Bouton JAUNE
+    st.markdown('<div class="big-btn yellow-zone">2. ANALYSE & ADMISSION<br><span style="font-size:16px">Diagnostic IA Temps Réel (Symptômes + Imagerie)</span></div>', unsafe_allow_html=True)
+    if st.button("NOUVELLE ADMISSION (JAUNE)", key="btn_yellow"): go_yellow(); st.rerun()
     
-    # Gestion de l'état de la caméra (ON/OFF)
-    if 'cam_active' not in st.session_state:
-        st.session_state.cam_active = False
+    # Bouton VERT
+    st.markdown('<div class="big-btn green-zone">3. DOSSIERS & RAPPORTS<br><span style="font-size:16px">Comptes-Rendus Automatiques & Archives</span></div>', unsafe_allow_html=True)
+    if st.button("GESTION DOSSIERS (VERT)", key="btn_green"): go_green(); st.rerun()
+    
+    st.markdown("---")
+    if st.button("⚙️ CONFIGURATION CLÉ API"): go_config(); st.rerun()
 
-    st.info("Importez des fichiers ou activez la caméra.")
-
-    # 1. BOUTON D'ACTIVATION CAMÉRA
-    if not st.session_state.cam_active:
-        if st.button("📸 ALLUMER LA CAMÉRA"):
-            st.session_state.cam_active = True
-            st.rerun()
-    else:
-        # Caméra active -> On affiche le widget ET le bouton pour éteindre
-        st.markdown("<div class='stop-btn'>", unsafe_allow_html=True)
-        if st.button("❌ ÉTEINDRE LA CAMÉRA (Économie Batterie)"):
-            st.session_state.cam_active = False
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+# ==============================================================================
+# PAGE ROUGE : URGENCES VITALES
+# ==============================================================================
+elif st.session_state.page == "RED":
+    st.markdown("<div class='home-btn'>", unsafe_allow_html=True)
+    if st.button("⬅️ RETOUR ACCUEIL"): go_home(); st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    st.markdown("<h1 style='color:#d32f2f !important'>🚨 PROTOCOLES URGENCES</h1>", unsafe_allow_html=True)
+    
+    c1, c2 = st.columns(2)
+    with c1:
+        st.error("❤️ ARRÊT CARDIO-RESPIRATOIRE")
+        st.write("""
+        **1. MCE** : 100-120/min (30 compressions / 2 insufflations)
+        **2. DÉFIBRILLATION** : Si FV/TV sans pouls -> Choc 200J Biphasique.
+        **3. ADRÉNALINE** : 1mg IVD toutes les 4 min.
+        **4. AMIODARONE** : 300mg IVD après le 3ème choc.
+        """)
         
-        img_cam = st.camera_input("PRENDRE PHOTO")
+        st.error("🩸 CHOC HÉMORRAGIQUE")
+        st.write("""
+        **1. HÉMOSTASE** : Compression / Garrot / Pansement compressif.
+        **2. REMPLISSAGE** : NaCl 0.9% ou Ringer (Objectif PAM > 65).
+        **3. ACIDE TRANEXAMIQUE** : 1g IV lent sur 10 min.
+        **4. TRANSFUSION** : CGR O-négatif si urgence absolue.
+        """)
 
-    # 2. UPLOAD MULTIPLE
-    uploaded_files = st.file_uploader("📂 FICHIERS (GALERIE)", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True)
+    with c2:
+        st.error("🐝 CHOC ANAPHYLACTIQUE")
+        st.write("""
+        **1. ADRÉNALINE IM** (Cuisse) : 
+           - Adulte : 0.5 mg
+           - Enfant : 0.01 mg/kg
+        **2. OXYGÈNE** : Masque haute concentration.
+        **3. REMPLISSAGE** : 20ml/kg si hypotension.
+        """)
+        
+        st.error("🧠 COMA / HYPOGLYCÉMIE")
+        st.write("""
+        **1. GLYCÉMIE CAPILLAIRE** : Si < 0.6 g/l -> G30% IVD.
+        **2. PROTECTION VA** : PLS ou Intubation si GCS < 8.
+        """)
+
+# ==============================================================================
+# PAGE JAUNE : NOUVELLE ADMISSION (LE CERVEAU IA)
+# ==============================================================================
+elif st.session_state.page == "YELLOW":
+    st.markdown("<div class='home-btn'>", unsafe_allow_html=True)
+    if st.button("⬅️ RETOUR ACCUEIL"): go_home(); st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
     
-    # Rassemblement des images
-    images_to_analyze = []
+    st.markdown("<h1 style='color:#fbc02d !important'>🧬 DIAGNOSTIC TEMPS RÉEL</h1>", unsafe_allow_html=True)
+    st.info("Remplissez les signes cliniques et ajoutez les examens (Photos/PDF) pour déterminer la spécialité.")
+
+    # 1. DONNÉES CLINIQUES
+    col_input, col_file = st.columns(2)
+    with col_input:
+        st.subheader("1. Signes & Symptômes")
+        texte_clinique = st.text_area("Anamnèse, Constantes, Plaintes...", height=150, placeholder="Ex: Homme 45 ans, douleur thoracique irradiant bras gauche, TA 16/9, Sueurs...")
     
-    # Récupération photo caméra (si active et prise)
-    if st.session_state.cam_active and 'img_cam' in locals() and img_cam:
-        st.image(img_cam, caption="Photo Caméra", width=150)
-        images_to_analyze.append(Image.open(img_cam))
+    # 2. GESTION FICHIERS (CORRIGÉE)
+    with col_file:
+        st.subheader("2. Imagerie & Bio")
+        
+        # Interrupteur Caméra
+        if 'cam_on' not in st.session_state: st.session_state.cam_on = False
+        
+        if not st.session_state.cam_on:
+            if st.button("📸 OUVRIR CAMÉRA"): st.session_state.cam_on = True; st.rerun()
+        else:
+            if st.button("❌ FERMER CAMÉRA"): st.session_state.cam_on = False; st.rerun()
+            img_cam = st.camera_input("Prendre photo")
+        
+        # Upload Multiple
+        uploaded = st.file_uploader("📂 OU CHARGER FICHIERS", type=['png','jpg','jpeg'], accept_multiple_files=True)
+        
+        # Rassemblement des images
+        images_analyse = []
+        if st.session_state.cam_on and 'img_cam' in locals() and img_cam: images_analyse.append(Image.open(img_cam))
+        if uploaded: 
+            for f in uploaded: images_analyse.append(Image.open(f))
+            st.success(f"✅ {len(images_analyse)} fichiers prêts à l'analyse.")
+
+    # 3. BOUTON ACTION
+    st.markdown("---")
+    if st.button("🚀 LANCER L'ANALYSE DIAGNOSTIQUE COMPLÈTE"):
+        if not texte_clinique and not images_analyse:
+            st.error("⚠️ Veuillez entrer du texte ou une image.")
+        else:
+            with st.spinner("🧠 SAMProb analyse les symptômes, les radios et les constantes..."):
+                resultat = st.session_state.brain.triage(texte_clinique, images_analyse)
+                st.markdown(f"<div class='ai-result'>{resultat}</div>", unsafe_allow_html=True)
+
+# ==============================================================================
+# PAGE VERTE : GESTION DOSSIERS
+# ==============================================================================
+elif st.session_state.page == "GREEN":
+    st.markdown("<div class='home-btn'>", unsafe_allow_html=True)
+    if st.button("⬅️ RETOUR ACCUEIL"): go_home(); st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
     
-    # Récupération fichiers uploadés
-    if uploaded_files:
-        st.write(f"**{len(uploaded_files)} fichiers importés :**")
-        cols = st.columns(len(uploaded_files))
-        for i, file in enumerate(uploaded_files):
-            img = Image.open(file)
-            images_to_analyze.append(img)
-            cols[i].image(img, use_container_width=True)
+    st.markdown("<h1 style='color:#2e7d32 !important'>📂 DOSSIERS & RAPPORTS</h1>", unsafe_allow_html=True)
+    
+    st.subheader("Générateur de Compte-Rendu")
+    
+    c1, c2 = st.columns(2)
+    with c1:
+        nom = st.text_input("Nom Patient")
+        diag = st.text_input("Diagnostic Retenu")
+        acte = st.text_input("Acte / Traitement réalisé")
+    
+    with c2:
+        type_rap = st.selectbox("Type de Rapport", ["Compte-Rendu d'Hospitalisation", "Ordonnance de Sortie", "Lettre de liaison"])
+        chir = st.text_input("Médecin Responsable", "Dr. SAMAKÉ")
+    
+    if st.button("GÉNÉRER LE DOCUMENT"):
+        date = time.strftime("%d/%m/%Y")
+        rapport = f"""
+        CHU DONKA - SERVICE D'URGENCE ET CHIRURGIE
+        ------------------------------------------------
+        DATE : {date}
+        TYPE : {type_rap}
+        MÉDECIN : {chir}
+        
+        PATIENT : {nom}
+        DIAGNOSTIC : {diag}
+        
+        HISTOIRE DE LA MALADIE :
+        Patient admis ce jour pour {diag}.
+        
+        PRISE EN CHARGE :
+        {acte}
+        
+        CONCLUSION :
+        État stable. Sortie autorisée avec ordonnance.
+        """
+        st.text_area("Aperçu du Document", rapport, height=300)
+        st.download_button("📥 TÉLÉCHARGER LE RAPPORT", rapport, file_name=f"Rapport_{nom}.txt")
 
-    # BOUTON ANALYSE
-    if images_to_analyze:
-        if st.button(f"LANCER L'ANALYSE ({len(images_to_analyze)} images)"):
-            with st.spinner("Analyse groupée en cours..."):
-                prompt_text = "Analyse ces images médicales. Décris les lésions, fractures ou anomalies visibles sur l'ensemble des clichés."
-                res = st.session_state.brain.analyze(prompt_text, images=images_to_analyze)
-                st.markdown(f"<div class='ai-box'>{res}</div>", unsafe_allow_html=True)
-
-# --- AUTRES MODULES ---
-elif menu == "🧮 SCORES":
-    st.title("SCORES")
-    t1, t2 = st.tabs(["GLASGOW", "WELLS"])
-    with t1:
-        y = st.selectbox("YEUX", [4,3,2,1], format_func=lambda x: f"{x}-Spontané" if x==4 else f"{x}-Voix" if x==3 else f"{x}-Douleur" if x==2 else f"{x}-Nul")
-        v = st.selectbox("VERBAL", [5,4,3,2,1], format_func=lambda x: f"{x}-Orienté" if x==5 else f"{x}-Confus" if x==4 else f"{x}-Inapp" if x==3 else f"{x}-Incomp" if x==2 else f"{x}-Nul")
-        m = st.selectbox("MOTEUR", [6,5,4,3,2,1], format_func=lambda x: f"{x}-Ordre" if x==6 else f"{x}-Orienté" if x==5 else f"{x}-Evit" if x==4 else f"{x}-Flex" if x==3 else f"{x}-Ext" if x==2 else f"{x}-Nul")
-        st.metric("TOTAL", y+v+m)
-    with t2:
-        s = sum([st.checkbox(l) for l in ["Cancer", "Immobilisation", "Alitement", "Douleur Veine", "Oedème Global", "Oedème >3cm"]])
-        st.metric("TOTAL", s)
-
-elif menu == "⚡ URGENCES":
-    st.title("URGENCES")
-    if st.button("❤️ ACR (Arrêt Cardiaque)"): st.error("MCE 30:2 | Adré 1mg/4min")
-    if st.button("💉 CHOC ANAPHYLACTIQUE"): st.warning("Adré IM 0.01mg/kg | Remplissage")
-
-elif menu == "⚙️ CONFIG":
-    st.title("CONFIG")
-    k = st.text_input("CLÉ API", type="password")
-    if st.button("CONNECTER") and k:
-        if st.session_state.brain.connect(k): st.success("OK")
-        else: st.error("ERREUR")
+# ==============================================================================
+# PAGE CONFIGURATION
+# ==============================================================================
+elif st.session_state.page == "CONFIG":
+    st.title("RÉGLAGES SYSTÈME")
+    key = st.text_input("CLÉ API GOOGLE GEMINI", type="password")
+    if st.button("CONNECTER"):
+        if st.session_state.brain.connect(key):
+            st.success("✅ CONNEXION RÉUSSIE. RETOURNEZ À L'ACCUEIL.")
+            time.sleep(1)
+            go_home(); st.rerun()
+        else:
+            st.error("❌ CLÉ INVALIDE")
+    
+    if st.button("⬅️ RETOUR SANS SAUVEGARDER"): go_home(); st.rerun()
